@@ -26,6 +26,11 @@ export default defineNuxtConfig({
 
     typescript: {
         typeCheck: true,
+        // Deno Edge Functions (supabase/functions) are deployed separately and
+        // must not be type-checked by the web app's tooling.
+        tsConfig: {
+            exclude: ['../supabase'],
+        },
     },
 
     extends: [

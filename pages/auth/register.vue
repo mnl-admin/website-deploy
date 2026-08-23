@@ -11,6 +11,34 @@ const loading = ref(false)
 const emailOtp = ref('')
 const verificationPending = ref(false)
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
+const CONTACT_EMAIL = 'informatique@mnl-syndicat.fr'
+
+const friendlyAuthError = (error: {message?: string, status?: number}) => {
+  const message = (error.message ?? '').toLowerCase()
+  if (message.includes('email not linked to membership')) {
+    return `Aucune adhésion n'a été trouvée pour cette adresse email. Vérifiez que vous utilisez bien l'email renseignée lors de votre adhésion, sinon contactez-nous à ${CONTACT_EMAIL}.`
+  }
+  if (message.includes('already registered')) {
+    return 'Un compte existe déjà avec cette adresse email. Connectez-vous ou réinitialisez votre mot de passe.'
+  }
+  if (message.includes('rate limit') || error.status === 429) {
+    return 'Trop de tentatives. Veuillez réessayer dans quelques minutes.'
+  }
+  if ((error.status !== undefined && error.status >= 500) || message.includes('database error')) {
+    return `Une erreur est survenue côté serveur. Veuillez réessayer dans quelques instants, sinon contactez-nous à ${CONTACT_EMAIL}.`
+  }
+  return error.message || 'Une erreur est survenue. Veuillez réessayer.'
+}
+
+const friendlyOtpError = (error: {message?: string}) => {
+  const message = (error.message ?? '').toLowerCase()
+  if (message.includes('invalid') || message.includes('expired')) {
+    return 'Ce code de vérification est invalide ou a expiré. Vérifiez votre boîte mail et réessayez.'
+  }
+  return error.message || 'Une erreur est survenue. Veuillez réessayer.'
+}
+
 const register = async () => {
   loading.value = true
 
@@ -30,7 +58,7 @@ const register = async () => {
     return
   }
 
-  if (password.value.match("^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$")) {
+  if (!PASSWORD_REGEX.test(password.value)) {
     modalMessage.value = "Le mot de passe doit contenir au moins une lettre majuscule, une lettre minuscule, un chiffre et un caractère spécial, et doit contenir au moins 8 caractères."
     modalType.value = "error"
     openModal.value = true
@@ -54,7 +82,7 @@ const register = async () => {
 
   loading.value = false
   if (error) {
-    modalMessage.value = error.message
+    modalMessage.value = friendlyAuthError(error)
     modalType.value = "error"
     openModal.value = true
   } else {
@@ -62,7 +90,6 @@ const register = async () => {
     modalType.value = "information"
     openModal.value = true
     verificationPending.value = true
-    loading.value = false
   }
 }
 
@@ -74,7 +101,7 @@ const confirmEmail = async () => {
   })
 
   if (error) {
-    modalMessage.value = error.message
+    modalMessage.value = friendlyOtpError(error)
     modalType.value = "error"
     openModal.value = true
     return
